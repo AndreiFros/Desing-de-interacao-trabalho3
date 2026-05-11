@@ -67,12 +67,9 @@
         <section class="cartao-info mt-4">
           <h2>Recursos utilizados neste trabalho</h2>
           <card-destaque>
-            <span slot="icone">icone;</span>
-            <span slot="titulo">Web Components com template e slot</span>
-            <span slot="descricao">
-              Header, nav e footer são web components reutilizados em todas as páginas.
-              Este card usa ;template; e slot; conforme exigido pelo enunciado.
-            </span>
+            <span slot="icone">🧩</span>
+            <span slot="titulo">Componentes Reutilizáveis</span>
+            <span slot="descricao">Header, nav e footer são Web Components reutilizados em todo o portfólio. Este cartão destaca o uso de <code>template</code> e <code>slot</code>, a consistência visual e a preocupação com acessibilidade.</span>
           </card-destaque>
         </section>
       </div>
@@ -89,21 +86,22 @@
         align-items: flex-start;
         gap: 1rem;
         padding: 1rem;
-        border: 2px solid #2f5d91;
-        border-radius: 6px;
-        background: #eef4ff;
+        border: 1px solid #1f6feb;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #f7fbff, #eef6ff);
+        box-shadow: 0 2px 6px rgba(31,111,235,0.06);
         margin-top: 0.5rem;
         font-family: Arial, Helvetica, sans-serif;
       }
-      .icone { font-size: 2rem; flex-shrink: 0; }
-      .texto h3 { margin: 0 0 0.3rem; color: #2f5d91; font-size: 1.1rem; }
-      .texto p  { margin: 0; font-size: 0.95rem; color: #333; }
+      .icone { font-size: 1.8rem; flex-shrink: 0; color: #1f6feb; }
+      .texto h3 { margin: 0 0 0.25rem; color: #123a6b; font-size: 1.05rem; }
+      .texto p  { margin: 0; font-size: 0.95rem; color: #333; line-height: 1.3; }
     </style>
     <div class="card-destaque">
-      <div class="icone"><slot name="icone">icone;</slot></div>
+      <div class="icone" aria-hidden="true"><slot name="icone">🔧</slot></div>
       <div class="texto">
-        <h3><slot name="titulo">Titulo</slot></h3>
-        <p><slot name="descricao">Descricao do recurso.</slot></p>
+        <h3><slot name="titulo">Recurso</slot></h3>
+        <p><slot name="descricao">Descrição do recurso.</slot></p>
       </div>
     </div>
   </template>
