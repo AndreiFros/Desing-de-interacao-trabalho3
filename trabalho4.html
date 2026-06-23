@@ -22,19 +22,18 @@
           <h2>Painel de dados simult&#226;neos</h2>
           <p>
             Esta p&#225;gina utiliza o comando <strong>Promise.all</strong> para consultar
-            <strong>3 APIs diferentes ao mesmo tempo</strong> e exibir os resultados lado a lado.
-            Todas as chamadas s&#227;o protegidas por <strong>try/catch</strong> para garantir que,
-            mesmo que uma API falhe, uma mensagem de erro amig&#225;vel seja exibida no lugar.
+            <strong>3 APIs p&#250;blicas diferentes ao mesmo tempo</strong> e exibir os
+            resultados lado a lado. Todas as chamadas s&#227;o protegidas por
+            <strong>try/catch</strong> para tratar erros de conex&#227;o ou de dados.
           </p>
           <p>As APIs consultadas s&#227;o:</p>
           <ul>
-            <li>&#x26A1; <strong>PokeAPI</strong> &#8211; Informa&#231;&#245;es sobre um Pok&#233;mon aleat&#243;rio</li>
-            <li>&#x1F324; <strong>Open-Meteo</strong> &#8211; Previs&#227;o do tempo em Porto Alegre / RS</li>
-            <li>&#x1F680; <strong>SWAPI</strong> &#8211; Personagem aleat&#243;rio do universo Star Wars</li>
+            <li>&#x1F4CD; <strong>ViaCEP</strong> &#8211; Endere&#231;o da Avenida Paulista (SP)</li>
+            <li>&#x1F5FA; <strong>IBGE Localidades</strong> &#8211; Lista dos estados brasileiros</li>
+            <li>&#x1F4F0; <strong>IBGE Not&#237;cias</strong> &#8211; &#218;ltimas not&#237;cias do IBGE</li>
           </ul>
           <p>
             Clique em <strong>Carregar dados</strong> para buscar todas as informa&#231;&#245;es de uma s&#243; vez.
-            Cada clique sorteia um Pok&#233;mon e um personagem diferente!
           </p>
         </section>
 
@@ -59,220 +58,154 @@
     (function () {
       'use strict';
 
-      const btnCarregar = document.getElementById('btnCarregar');
-      const painel      = document.getElementById('painel-apis');
+      var btnCarregar = document.getElementById('btnCarregar');
+      var painel      = document.getElementById('painel-apis');
 
       btnCarregar.addEventListener('click', carregarApis);
-
-      // Carrega automaticamente ao abrir a p&#225;gina
       window.addEventListener('DOMContentLoaded', carregarApis);
 
       async function carregarApis() {
         btnCarregar.disabled = true;
         mostrarCarregando();
 
-        // IDs aleat&#243;rios para variar a cada clique
-        const idPokemon     = Math.floor(Math.random() * 151) + 1;   // Pok&#233;mon 1&#8211;151
-        const idPersonagem  = Math.floor(Math.random() * 82)  + 1;   // SWAPI pessoas 1&#8211;82
-
-        const urlPokemon    = `https://pokeapi.co/api/v2/pokemon/${idPokemon}`;
-        const urlTempo      = 'https://api.open-meteo.com/v1/forecast?latitude=-30.0346&longitude=-51.2177&current_weather=true&hourly=relativehumidity_2m&timezone=America%2FSao_Paulo';
-        const urlPersonagem = `https://swapi.dev/api/people/${idPersonagem}/`;
+        var urlCep     = 'https://viacep.com.br/ws/01310100/json/';
+        var urlEstados = 'https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome';
+        var urlNoticias = 'https://servicodados.ibge.gov.br/api/v3/noticias/?qtd=4';
 
         try {
-          // Promise.all dispara as 3 chamadas ao mesmo tempo
-          const [resPoke, resTempo, resSW] = await Promise.all([
-            fetch(urlPokemon),
-            fetch(urlTempo),
-            fetch(urlPersonagem)
+          var resultados = await Promise.all([
+            fetch(urlCep),
+            fetch(urlEstados),
+            fetch(urlNoticias)
           ]);
 
-          // Verifica status HTTP de cada resposta individualmente
-          if (!resPoke.ok)  throw new Error(`PokeAPI: HTTP ${resPoke.status}`);
-          if (!resTempo.ok) throw new Error(`Open-Meteo: HTTP ${resTempo.status}`);
-          if (!resSW.ok)    throw new Error(`SWAPI: HTTP ${resSW.status}`);
+          var resCep     = resultados[0];
+          var resEstados = resultados[1];
+          var resNoticias = resultados[2];
 
-          // Converte as 3 respostas para JSON ao mesmo tempo
-          const [dadosPoke, dadosTempo, dadosSW] = await Promise.all([
-            resPoke.json(),
-            resTempo.json(),
-            resSW.json()
+          if (!resCep.ok)      throw new Error('ViaCEP: HTTP ' + resCep.status);
+          if (!resEstados.ok)  throw new Error('IBGE Localidades: HTTP ' + resEstados.status);
+          if (!resNoticias.ok) throw new Error('IBGE Not\u00edcias: HTTP ' + resNoticias.status);
+
+          var jsons = await Promise.all([
+            resCep.json(),
+            resEstados.json(),
+            resNoticias.json()
           ]);
 
-          renderizarPainel(dadosPoke, dadosTempo, dadosSW);
+          renderizarPainel(jsons[0], jsons[1], jsons[2]);
 
         } catch (erro) {
-          painel.innerHTML = `
-            <div class="cartao-info" style="border-color:#dc3545; background:#fff5f5;" role="alert">
-              <p style="color:#8b0000; font-weight:700; margin:0;">
-                &#10060; Erro ao carregar os dados: ${erro.message || 'Verifique sua conex&#227;o e tente novamente.'}
-              </p>
-            </div>
-          `;
+          painel.innerHTML =
+            '<div class="cartao-info" style="border-color:#dc3545;background:#fff5f5;" role="alert">' +
+            '<p style="color:#8b0000;font-weight:700;margin:0;">&#10060; Erro ao carregar os dados: ' +
+            (erro.message || 'Verifique sua conex\u00e3o e tente novamente.') +
+            '</p></div>';
         } finally {
           btnCarregar.disabled = false;
         }
       }
 
       function mostrarCarregando() {
-        painel.innerHTML = `
-          <div class="cartao-info text-center">
-            <p style="color:#2f5d91; font-weight:700; margin:0;">&#9203; Consultando as APIs, aguarde...</p>
-          </div>
-        `;
+        painel.innerHTML =
+          '<div class="cartao-info text-center">' +
+          '<p style="color:#2f5d91;font-weight:700;margin:0;">&#9203; Consultando as APIs, aguarde...</p>' +
+          '</div>';
       }
 
-      function renderizarPainel(dadosPoke, dadosTempo, dadosSW) {
-        painel.innerHTML = `
-          <div class="row g-4">
-            <div class="col-12 col-md-4">${cardPokemon(dadosPoke)}</div>
-            <div class="col-12 col-md-4">${cardTempo(dadosTempo)}</div>
-            <div class="col-12 col-md-4">${cardStarWars(dadosSW)}</div>
-          </div>
-          <p class="mt-3" style="font-size:.8rem; color:#555; text-align:center;">
-            Dados carregados via <strong>Promise.all</strong> em uma &#250;nica chamada assim&#237;ncrona.
-          </p>
-        `;
+      function renderizarPainel(dadosCep, dadosEstados, dadosNoticias) {
+        painel.innerHTML =
+          '<div class="row g-4">' +
+          '<div class="col-12 col-md-4">' + cardCep(dadosCep) + '</div>' +
+          '<div class="col-12 col-md-4">' + cardEstados(dadosEstados) + '</div>' +
+          '<div class="col-12 col-md-4">' + cardNoticias(dadosNoticias) + '</div>' +
+          '</div>' +
+          '<p class="mt-3" style="font-size:.8rem;color:#555;text-align:center;">' +
+          'Dados carregados via <strong>Promise.all</strong> em uma \u00fanica chamada ass\u00edncrona.' +
+          '</p>';
       }
 
-      // -------------------------------------------------------
-      // Card 1: PokeAPI
-      // -------------------------------------------------------
-      function cardPokemon(d) {
+      // Card 1: ViaCEP
+      function cardCep(d) {
         try {
-          const nome   = d.name.charAt(0).toUpperCase() + d.name.slice(1);
-          const id     = String(d.id).padStart(3, '0');
-          const sprite = d.sprites.front_default || d.sprites.front_shiny || '';
-          const tipos  = d.types.map(t => t.type.name).join(', ');
-          const altura = (d.height / 10).toFixed(1) + ' m';
-          const peso   = (d.weight / 10).toFixed(1) + ' kg';
-          const hps    = d.stats.find(s => s.stat.name === 'hp');
-          const hp     = hps ? hps.base_stat : '&#8211;';
-          const moves  = d.moves.slice(0, 3).map(m => m.move.name).join(', ');
-          const img    = sprite ? `<img src="${sprite}" alt="Sprite de ${nome}" style="width:96px; height:96px; image-rendering:pixelated; display:block; margin:0 auto .5rem;">` : '';
+          var linhas =
+            '<dt style="font-weight:700;color:#444;">CEP</dt><dd style="margin:0;">' + (d.cep || '-') + '</dd>' +
+            '<dt style="font-weight:700;color:#444;">Logradouro</dt><dd style="margin:0;">' + (d.logradouro || '-') + '</dd>' +
+            '<dt style="font-weight:700;color:#444;">Bairro</dt><dd style="margin:0;">' + (d.bairro || '-') + '</dd>' +
+            '<dt style="font-weight:700;color:#444;">Cidade</dt><dd style="margin:0;">' + (d.localidade || '-') + '</dd>' +
+            '<dt style="font-weight:700;color:#444;">Estado</dt><dd style="margin:0;">' + (d.uf || '-') + '</dd>' +
+            '<dt style="font-weight:700;color:#444;">DDD</dt><dd style="margin:0;">' + (d.ddd || '-') + '</dd>';
 
-          return `
-            <div class="cartao-info h-100" style="border-color:#e83535;">
-              <h2 style="color:#e83535; font-size:1.1rem; text-align:center;">&#x26A1; Pok&#233;mon #${id}</h2>
-              <p style="font-size:.75rem; color:#555; text-align:center; margin-bottom:.5rem;">Fonte: <strong>PokeAPI</strong></p>
-              ${img}
-              <p style="font-size:1.3rem; font-weight:700; text-align:center; margin:.3rem 0 .75rem;">${nome}</p>
-              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
-                <dt style="font-weight:700; color:#444;">Tipo</dt>      <dd style="margin:0; text-transform:capitalize;">${tipos}</dd>
-                <dt style="font-weight:700; color:#444;">Altura</dt>    <dd style="margin:0;">${altura}</dd>
-                <dt style="font-weight:700; color:#444;">Peso</dt>      <dd style="margin:0;">${peso}</dd>
-                <dt style="font-weight:700; color:#444;">HP base</dt>   <dd style="margin:0;">${hp}</dd>
-                <dt style="font-weight:700; color:#444;">Golpes</dt>    <dd style="margin:0; text-transform:capitalize;">${moves}</dd>
-              </dl>
-            </div>
-          `;
+          return '<div class="cartao-info h-100" style="border-color:#2f5d91;">' +
+            '<h2 style="color:#2f5d91;font-size:1.1rem;margin-bottom:.3rem;">&#x1F4CD; ViaCEP</h2>' +
+            '<p style="font-size:.75rem;color:#555;margin-bottom:.75rem;">Endere\u00e7o da Av. Paulista &mdash; S\u00e3o Paulo/SP</p>' +
+            '<dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:.3rem .75rem;font-size:.9rem;">' +
+            linhas + '</dl>' +
+            '<hr style="margin:.9rem 0 .5rem;border-color:#ddd;">' +
+            '<p style="font-size:.75rem;color:#777;margin:0;">Fonte: <a href="https://viacep.com.br" target="_blank" rel="noopener noreferrer">viacep.com.br</a></p>' +
+            '</div>';
         } catch (e) {
-          return cardErro('PokeAPI', 'N&#227;o foi poss&#237;vel processar os dados do Pok&#233;mon.');
+          return cardErro('ViaCEP', 'N\u00e3o foi poss\u00edvel processar os dados do CEP.');
         }
       }
 
-      // -------------------------------------------------------
-      // Card 2: Open-Meteo (Porto Alegre)
-      // -------------------------------------------------------
-      function cardTempo(d) {
+      // Card 2: IBGE Estados
+      function cardEstados(lista) {
         try {
-          const cw       = d.current_weather;
-          const temp     = cw.temperature;
-          const vento    = cw.windspeed;
-          const hora     = cw.time.split('T')[1];
-          const codigo   = cw.weathercode;
-          const diurno   = cw.is_day;
+          var total = lista.length;
+          // Exibe os primeiros 8 estados (ordenados por nome)
+          var itens = lista.slice(0, 8).map(function(e) {
+            return '<li style="font-size:.88rem;padding:.15rem 0;">' +
+              '<strong>' + e.sigla + '</strong> &mdash; ' + e.nome +
+              '</li>';
+          }).join('');
 
-          // Umidade da hora mais recente
-          const umidades = d.hourly.relativehumidity_2m;
-          const umidade  = Array.isArray(umidades) && umidades.length > 0
-            ? umidades[umidades.length - 1] + '%'
-            : '&#8211;';
-
-          // Descri&#231;&#227;o resumida do c&#243;digo WMO
-          function descricaoTempo(code) {
-            if (code === 0)           return '&#x2600;&#xFE0F; C&#233;u limpo';
-            if (code <= 3)            return '&#x26C5; Parcialmente nublado';
-            if (code <= 9)            return '&#x1F32B;&#xFE0F; Neblina';
-            if (code <= 19)           return '&#x1F326;&#xFE0F; Chuva leve';
-            if (code <= 29)           return '&#x1F327;&#xFE0F; Tempestade';
-            if (code <= 39)           return '&#x1F32B;&#xFE0F; Nevoeiro';
-            if (code <= 49)           return '&#x1F32B;&#xFE0F; Neblina densa';
-            if (code <= 59)           return '&#x1F326;&#xFE0F; Garoa';
-            if (code <= 69)           return '&#x1F327;&#xFE0F; Chuva';
-            if (code <= 79)           return '&#x1F328;&#xFE0F; Neve';
-            if (code <= 84)           return '&#x1F327;&#xFE0F; Pancadas de chuva';
-            if (code <= 94)           return '&#x26C8;&#xFE0F; Tempestade com raios';
-            return '&#x26C8;&#xFE0F; Tempestade forte';
-          }
-
-          const desc    = descricaoTempo(codigo);
-          const periodo = diurno ? '&#x2600; Dia' : '&#x1F319; Noite';
-          const corTemp = temp >= 30 ? '#c0392b' : temp >= 20 ? '#d75f22' : temp >= 10 ? '#2f5d91' : '#1a6b32';
-
-          return `
-            <div class="cartao-info h-100" style="border-color:#2f5d91;">
-              <h2 style="color:#2f5d91; font-size:1.1rem; text-align:center;">&#x1F324; Tempo em Porto Alegre</h2>
-              <p style="font-size:.75rem; color:#555; text-align:center; margin-bottom:.75rem;">Fonte: <strong>Open-Meteo API</strong></p>
-              <p style="font-size:3rem; text-align:center; margin:.2rem 0; font-weight:700; color:${corTemp};">${temp}&#176;C</p>
-              <p style="text-align:center; font-size:1rem; margin:.3rem 0 .9rem;">${desc}</p>
-              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
-                <dt style="font-weight:700; color:#444;">Per&#237;odo</dt>  <dd style="margin:0;">${periodo}</dd>
-                <dt style="font-weight:700; color:#444;">Vento</dt>    <dd style="margin:0;">${vento} km/h</dd>
-                <dt style="font-weight:700; color:#444;">Umidade</dt>  <dd style="margin:0;">${umidade}</dd>
-                <dt style="font-weight:700; color:#444;">Hora</dt>     <dd style="margin:0;">${hora}</dd>
-                <dt style="font-weight:700; color:#444;">Coordenadas</dt><dd style="margin:0;">-30.03, -51.22</dd>
-              </dl>
-            </div>
-          `;
+          return '<div class="cartao-info h-100" style="border-color:#2b8f54;">' +
+            '<h2 style="color:#2b8f54;font-size:1.1rem;margin-bottom:.3rem;">&#x1F5FA; IBGE &mdash; Estados</h2>' +
+            '<p style="font-size:.75rem;color:#555;margin-bottom:.6rem;">' +
+            'O Brasil possui <strong>' + total + ' estados</strong> (+ DF). Primeiros 8:' +
+            '</p>' +
+            '<ul style="padding-left:1.2rem;margin:0 0 .75rem;">' + itens + '</ul>' +
+            '<hr style="margin:.5rem 0;border-color:#ddd;">' +
+            '<p style="font-size:.75rem;color:#777;margin:0;">Fonte: <a href="https://servicodados.ibge.gov.br/api/v1/localidades/estados" target="_blank" rel="noopener noreferrer">IBGE Localidades API</a></p>' +
+            '</div>';
         } catch (e) {
-          return cardErro('Open-Meteo', 'N&#227;o foi poss&#237;vel processar a previs&#227;o do tempo.');
+          return cardErro('IBGE Localidades', 'N\u00e3o foi poss\u00edvel processar a lista de estados.');
         }
       }
 
-      // -------------------------------------------------------
-      // Card 3: SWAPI &#8211; Star Wars
-      // -------------------------------------------------------
-      function cardStarWars(d) {
+      // Card 3: IBGE Notícias
+      function cardNoticias(dados) {
         try {
-          const nome      = d.name;
-          const altura    = d.height !== 'unknown' ? d.height + ' cm' : 'Desconhecida';
-          const massa     = d.mass   !== 'unknown' ? d.mass   + ' kg' : 'Desconhecida';
-          const cabelo    = d.hair_color;
-          const olhos     = d.eye_color;
-          const nascimento = d.birth_year;
-          const genero    = d.gender;
-          const nFilmes   = Array.isArray(d.films) ? d.films.length : '&#8211;';
+          var lista = dados.items || dados;
+          var itens = lista.slice(0, 3).map(function(n) {
+            var titulo = n.titulo || n.title || 'Sem t\u00edtulo';
+            var intro  = n.introducao || n.intro || '';
+            var curto  = intro.length > 100 ? intro.slice(0, 97) + '...' : intro;
+            var link   = n.link || '#';
+            return '<div style="border-bottom:1px solid #eee;padding-bottom:.6rem;margin-bottom:.6rem;">' +
+              '<p style="font-size:.88rem;font-weight:700;margin:0 0 .2rem;">' + titulo + '</p>' +
+              '<p style="font-size:.8rem;color:#555;margin:0 0 .2rem;">' + curto + '</p>' +
+              '<a href="' + link + '" target="_blank" rel="noopener noreferrer" style="font-size:.78rem;color:#d75f22;font-weight:700;">Ler mais &rarr;</a>' +
+              '</div>';
+          }).join('');
 
-          return `
-            <div class="cartao-info h-100" style="border-color:#274a73; background:linear-gradient(160deg,#0a0a1a 0%,#1a2340 100%); color:#e0e8ff;">
-              <h2 style="color:#f0d060; font-size:1.1rem; text-align:center;">&#x1F680; Personagem Star Wars</h2>
-              <p style="font-size:.75rem; color:#8899bb; text-align:center; margin-bottom:.75rem;">Fonte: <strong>SWAPI &#8211; The Star Wars API</strong></p>
-              <p style="font-size:1.4rem; font-weight:700; text-align:center; color:#f0d060; margin:.3rem 0 .9rem;">${nome}</p>
-              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem; color:#ccd9f0;">
-                <dt style="font-weight:700; color:#8899bb;">Altura</dt>      <dd style="margin:0;">${altura}</dd>
-                <dt style="font-weight:700; color:#8899bb;">Massa</dt>       <dd style="margin:0;">${massa}</dd>
-                <dt style="font-weight:700; color:#8899bb;">Cabelo</dt>      <dd style="margin:0; text-transform:capitalize;">${cabelo}</dd>
-                <dt style="font-weight:700; color:#8899bb;">Olhos</dt>       <dd style="margin:0; text-transform:capitalize;">${olhos}</dd>
-                <dt style="font-weight:700; color:#8899bb;">Nascimento</dt>  <dd style="margin:0;">${nascimento}</dd>
-                <dt style="font-weight:700; color:#8899bb;">G&#234;nero</dt>      <dd style="margin:0; text-transform:capitalize;">${genero}</dd>
-                <dt style="font-weight:700; color:#8899bb;">Filmes</dt>      <dd style="margin:0;">${nFilmes} aparici&#245;es</dd>
-              </dl>
-            </div>
-          `;
+          return '<div class="cartao-info h-100" style="border-color:#d75f22;">' +
+            '<h2 style="color:#d75f22;font-size:1.1rem;margin-bottom:.3rem;">&#x1F4F0; IBGE &mdash; Not\u00edcias</h2>' +
+            '<p style="font-size:.75rem;color:#555;margin-bottom:.75rem;">\u00daItimas not\u00edcias publicadas pelo IBGE</p>' +
+            itens +
+            '<p style="font-size:.75rem;color:#777;margin:0;">Fonte: <a href="https://servicodados.ibge.gov.br/api/v3/noticias/" target="_blank" rel="noopener noreferrer">IBGE Not\u00edcias API</a></p>' +
+            '</div>';
         } catch (e) {
-          return cardErro('SWAPI', 'N&#227;o foi poss&#237;vel processar os dados do personagem.');
+          return cardErro('IBGE Not\u00edcias', 'N\u00e3o foi poss\u00edvel processar as not\u00edcias.');
         }
       }
 
-      // Card gen&#233;rico de erro por API
       function cardErro(nomeApi, mensagem) {
-        return `
-          <div class="cartao-info h-100" style="border-color:#dc3545; background:#fff5f5;">
-            <h2 style="color:#8b0000; font-size:1.1rem;">&#10060; Erro: ${nomeApi}</h2>
-            <p style="margin:0; font-size:.9rem;">${mensagem}</p>
-          </div>
-        `;
+        return '<div class="cartao-info h-100" style="border-color:#dc3545;background:#fff5f5;">' +
+          '<h2 style="color:#8b0000;font-size:1.1rem;">&#10060; Erro: ' + nomeApi + '</h2>' +
+          '<p style="margin:0;font-size:.9rem;">' + mensagem + '</p>' +
+          '</div>';
       }
 
     }());
