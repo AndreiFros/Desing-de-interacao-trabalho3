@@ -19,23 +19,22 @@
       <div class="container py-4 py-md-5">
 
         <section class="cartao-info mb-4">
-          <h2>Painel de dados simultâneos</h2>
+          <h2>Painel de dados simult&#226;neos</h2>
           <p>
-            Esta página utiliza o comando <strong>Promise.all</strong> para consultar
+            Esta p&#225;gina utiliza o comando <strong>Promise.all</strong> para consultar
             <strong>3 APIs diferentes ao mesmo tempo</strong> e exibir os resultados lado a lado.
-            Todas as chamadas são protegidas contra erros para garantir que, mesmo que uma API
-            falhe, as demais continuem sendo exibidas.
+            Todas as chamadas s&#227;o protegidas por <strong>try/catch</strong> para garantir que,
+            mesmo que uma API falhe, uma mensagem de erro amig&#225;vel seja exibida no lugar.
           </p>
-          <p>
-            As APIs consultadas são:
-          </p>
+          <p>As APIs consultadas s&#227;o:</p>
           <ul>
-            <li>&#x1F30D; <strong>REST Countries</strong> &#8211; Informações sobre o Brasil</li>
-            <li>&#x1F680; <strong>Spaceflight News</strong> &#8211; Última notícia sobre o espaço</li>
-            <li>&#x1F4B5; <strong>AwesomeAPI (Moedas)</strong> &#8211; Cotação do Dólar (USD) e Euro (EUR)</li>
+            <li>&#x26A1; <strong>PokeAPI</strong> &#8211; Informa&#231;&#245;es sobre um Pok&#233;mon aleat&#243;rio</li>
+            <li>&#x1F324; <strong>Open-Meteo</strong> &#8211; Previs&#227;o do tempo em Porto Alegre / RS</li>
+            <li>&#x1F680; <strong>SWAPI</strong> &#8211; Personagem aleat&#243;rio do universo Star Wars</li>
           </ul>
           <p>
-            Clique em <strong>Carregar dados</strong> para buscar todas as informações de uma só vez.
+            Clique em <strong>Carregar dados</strong> para buscar todas as informa&#231;&#245;es de uma s&#243; vez.
+            Cada clique sorteia um Pok&#233;mon e um personagem diferente!
           </p>
         </section>
 
@@ -46,7 +45,7 @@
         </div>
 
         <section id="painel-apis" aria-live="polite" aria-atomic="true">
-          <!-- Resultados serão inseridos aqui via JavaScript -->
+          <!-- Resultados inseridos via JavaScript -->
         </section>
 
       </div>
@@ -65,44 +64,48 @@
 
       btnCarregar.addEventListener('click', carregarApis);
 
-      // Carrega automaticamente ao abrir a página
+      // Carrega automaticamente ao abrir a p&#225;gina
       window.addEventListener('DOMContentLoaded', carregarApis);
 
       async function carregarApis() {
         btnCarregar.disabled = true;
         mostrarCarregando();
 
-        // URLs das 3 APIs
-        const urlPais     = 'https://restcountries.com/v3.1/alpha/BR';
-        const urlEspaco   = 'https://api.spaceflightnewsapi.net/v4/articles/?limit=1';
-        const urlMoedas   = 'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL';
+        // IDs aleat&#243;rios para variar a cada clique
+        const idPokemon     = Math.floor(Math.random() * 151) + 1;   // Pok&#233;mon 1&#8211;151
+        const idPersonagem  = Math.floor(Math.random() * 82)  + 1;   // SWAPI pessoas 1&#8211;82
+
+        const urlPokemon    = `https://pokeapi.co/api/v2/pokemon/${idPokemon}`;
+        const urlTempo      = 'https://api.open-meteo.com/v1/forecast?latitude=-30.0346&longitude=-51.2177&current_weather=true&hourly=relativehumidity_2m&timezone=America%2FSao_Paulo';
+        const urlPersonagem = `https://swapi.dev/api/people/${idPersonagem}/`;
 
         try {
-          // Promise.all dispara as 3 chamadas simultaneamente
-          const [resPais, resEspaco, resMoedas] = await Promise.all([
-            fetch(urlPais),
-            fetch(urlEspaco),
-            fetch(urlMoedas)
+          // Promise.all dispara as 3 chamadas ao mesmo tempo
+          const [resPoke, resTempo, resSW] = await Promise.all([
+            fetch(urlPokemon),
+            fetch(urlTempo),
+            fetch(urlPersonagem)
           ]);
 
-          // Verifica o status HTTP de cada resposta
-          if (!resPais.ok)   throw new Error(`REST Countries: HTTP ${resPais.status}`);
-          if (!resEspaco.ok) throw new Error(`Spaceflight News: HTTP ${resEspaco.status}`);
-          if (!resMoedas.ok) throw new Error(`AwesomeAPI: HTTP ${resMoedas.status}`);
+          // Verifica status HTTP de cada resposta individualmente
+          if (!resPoke.ok)  throw new Error(`PokeAPI: HTTP ${resPoke.status}`);
+          if (!resTempo.ok) throw new Error(`Open-Meteo: HTTP ${resTempo.status}`);
+          if (!resSW.ok)    throw new Error(`SWAPI: HTTP ${resSW.status}`);
 
-          const [dadosPais, dadosEspaco, dadosMoedas] = await Promise.all([
-            resPais.json(),
-            resEspaco.json(),
-            resMoedas.json()
+          // Converte as 3 respostas para JSON ao mesmo tempo
+          const [dadosPoke, dadosTempo, dadosSW] = await Promise.all([
+            resPoke.json(),
+            resTempo.json(),
+            resSW.json()
           ]);
 
-          renderizarPainel(dadosPais, dadosEspaco, dadosMoedas);
+          renderizarPainel(dadosPoke, dadosTempo, dadosSW);
 
         } catch (erro) {
           painel.innerHTML = `
             <div class="cartao-info" style="border-color:#dc3545; background:#fff5f5;" role="alert">
               <p style="color:#8b0000; font-weight:700; margin:0;">
-                &#10060; Erro ao carregar os dados: ${erro.message || 'Verifique sua conexão e tente novamente.'}
+                &#10060; Erro ao carregar os dados: ${erro.message || 'Verifique sua conex&#227;o e tente novamente.'}
               </p>
             </div>
           `;
@@ -119,135 +122,154 @@
         `;
       }
 
-      function renderizarPainel(dadosPais, dadosEspaco, dadosMoedas) {
-        const pais    = cardPais(dadosPais);
-        const espaco  = cardEspaco(dadosEspaco);
-        const moedas  = cardMoedas(dadosMoedas);
-
+      function renderizarPainel(dadosPoke, dadosTempo, dadosSW) {
         painel.innerHTML = `
           <div class="row g-4">
-            <div class="col-12 col-md-4">${pais}</div>
-            <div class="col-12 col-md-4">${espaco}</div>
-            <div class="col-12 col-md-4">${moedas}</div>
+            <div class="col-12 col-md-4">${cardPokemon(dadosPoke)}</div>
+            <div class="col-12 col-md-4">${cardTempo(dadosTempo)}</div>
+            <div class="col-12 col-md-4">${cardStarWars(dadosSW)}</div>
           </div>
           <p class="mt-3" style="font-size:.8rem; color:#555; text-align:center;">
-            Dados carregados via <strong>Promise.all</strong> em uma única chamada assíncrona.
+            Dados carregados via <strong>Promise.all</strong> em uma &#250;nica chamada assim&#237;ncrona.
           </p>
         `;
       }
 
       // -------------------------------------------------------
-      // Card 1: REST Countries &#8211; Informações sobre o Brasil
+      // Card 1: PokeAPI
       // -------------------------------------------------------
-      function cardPais(dados) {
+      function cardPokemon(d) {
         try {
-          const p          = dados[0];
-          const nome       = p.name.common || '&#8211;';
-          const capital    = (p.capital && p.capital[0]) || '&#8211;';
-          const populacao  = p.population ? p.population.toLocaleString('pt-BR') : '&#8211;';
-          const area       = p.area       ? p.area.toLocaleString('pt-BR') + ' km&#178;' : '&#8211;';
-          const idiomas    = p.languages  ? Object.values(p.languages).join(', ') : '&#8211;';
-          const moeda      = p.currencies ? Object.values(p.currencies).map(m => `${m.name} (${m.symbol})`).join(', ') : '&#8211;';
-          const bandeira   = (p.flags && p.flags.svg) ? `<img src="${p.flags.svg}" alt="Bandeira do Brasil" style="width:100%; max-width:180px; border-radius:4px; border:1px solid #ccc; margin-bottom:.75rem;" loading="lazy">` : '';
+          const nome   = d.name.charAt(0).toUpperCase() + d.name.slice(1);
+          const id     = String(d.id).padStart(3, '0');
+          const sprite = d.sprites.front_default || d.sprites.front_shiny || '';
+          const tipos  = d.types.map(t => t.type.name).join(', ');
+          const altura = (d.height / 10).toFixed(1) + ' m';
+          const peso   = (d.weight / 10).toFixed(1) + ' kg';
+          const hps    = d.stats.find(s => s.stat.name === 'hp');
+          const hp     = hps ? hps.base_stat : '&#8211;';
+          const moves  = d.moves.slice(0, 3).map(m => m.move.name).join(', ');
+          const img    = sprite ? `<img src="${sprite}" alt="Sprite de ${nome}" style="width:96px; height:96px; image-rendering:pixelated; display:block; margin:0 auto .5rem;">` : '';
 
           return `
-            <div class="cartao-info h-100" style="border-color:#2f5d91;">
-              <h2 style="color:#2f5d91; font-size:1.1rem;">&#x1F30D; Informações sobre o Brasil</h2>
-              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>REST Countries API</strong></p>
-              ${bandeira}
-              <dl style="margin:0; display:grid; grid-template-columns: auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
-                <dt style="font-weight:700; color:#444;">Pa&#237;s</dt>       <dd style="margin:0;">${nome}</dd>
-                <dt style="font-weight:700; color:#444;">Capital</dt>    <dd style="margin:0;">${capital}</dd>
-                <dt style="font-weight:700; color:#444;">Popula&#231;&#227;o</dt> <dd style="margin:0;">${populacao} hab.</dd>
-                <dt style="font-weight:700; color:#444;">&#193;rea</dt>       <dd style="margin:0;">${area}</dd>
-                <dt style="font-weight:700; color:#444;">Idioma</dt>     <dd style="margin:0;">${idiomas}</dd>
-                <dt style="font-weight:700; color:#444;">Moeda</dt>      <dd style="margin:0;">${moeda}</dd>
+            <div class="cartao-info h-100" style="border-color:#e83535;">
+              <h2 style="color:#e83535; font-size:1.1rem; text-align:center;">&#x26A1; Pok&#233;mon #${id}</h2>
+              <p style="font-size:.75rem; color:#555; text-align:center; margin-bottom:.5rem;">Fonte: <strong>PokeAPI</strong></p>
+              ${img}
+              <p style="font-size:1.3rem; font-weight:700; text-align:center; margin:.3rem 0 .75rem;">${nome}</p>
+              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
+                <dt style="font-weight:700; color:#444;">Tipo</dt>      <dd style="margin:0; text-transform:capitalize;">${tipos}</dd>
+                <dt style="font-weight:700; color:#444;">Altura</dt>    <dd style="margin:0;">${altura}</dd>
+                <dt style="font-weight:700; color:#444;">Peso</dt>      <dd style="margin:0;">${peso}</dd>
+                <dt style="font-weight:700; color:#444;">HP base</dt>   <dd style="margin:0;">${hp}</dd>
+                <dt style="font-weight:700; color:#444;">Golpes</dt>    <dd style="margin:0; text-transform:capitalize;">${moves}</dd>
               </dl>
             </div>
           `;
         } catch (e) {
-          return cardErro('REST Countries', 'N&#227;o foi poss&#237;vel processar os dados do pa&#237;s.');
+          return cardErro('PokeAPI', 'N&#227;o foi poss&#237;vel processar os dados do Pok&#233;mon.');
         }
       }
 
       // -------------------------------------------------------
-      // Card 2: Spaceflight News &#8211; &#218;ltima not&#237;cia do espa&#231;o
+      // Card 2: Open-Meteo (Porto Alegre)
       // -------------------------------------------------------
-      function cardEspaco(dados) {
+      function cardTempo(d) {
         try {
-          const artigo    = dados.results[0];
-          const titulo    = artigo.title           || 'Sem t&#237;tulo';
-          const resumo    = artigo.summary         || 'Sem resumo dispon&#237;vel.';
-          const publicado = artigo.published_at    ? new Date(artigo.published_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }) : '&#8211;';
-          const link      = artigo.url             || '#';
-          const imagem    = artigo.image_url       ? `<img src="${artigo.image_url}" alt="${titulo}" style="width:100%; max-height:140px; object-fit:cover; border-radius:4px; margin-bottom:.75rem;" loading="lazy">` : '';
+          const cw       = d.current_weather;
+          const temp     = cw.temperature;
+          const vento    = cw.windspeed;
+          const hora     = cw.time.split('T')[1];
+          const codigo   = cw.weathercode;
+          const diurno   = cw.is_day;
 
-          // Limita o resumo para não deixar o card muito alto
-          const resumoCurto = resumo.length > 220 ? resumo.slice(0, 217) + '...' : resumo;
+          // Umidade da hora mais recente
+          const umidades = d.hourly.relativehumidity_2m;
+          const umidade  = Array.isArray(umidades) && umidades.length > 0
+            ? umidades[umidades.length - 1] + '%'
+            : '&#8211;';
 
-          return `
-            <div class="cartao-info h-100" style="border-color:#d75f22;">
-              <h2 style="color:#d75f22; font-size:1.1rem;">&#x1F680; &#218;ltima Not&#237;cia Espacial</h2>
-              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>Spaceflight News API</strong></p>
-              ${imagem}
-              <p style="font-weight:700; font-size:.95rem; margin-bottom:.4rem;">${titulo}</p>
-              <p style="font-size:.88rem; color:#444; margin-bottom:.75rem;">${resumoCurto}</p>
-              <p style="font-size:.8rem; color:#666; margin-bottom:.75rem;">&#x1F4C5; Publicado em: ${publicado}</p>
-              <a href="${link}" target="_blank" rel="noopener noreferrer" style="font-size:.85rem; color:#d75f22; font-weight:700;">
-                Ler not&#237;cia completa &#8594;
-              </a>
-            </div>
-          `;
-        } catch (e) {
-          return cardErro('Spaceflight News', 'N&#227;o foi poss&#237;vel processar as not&#237;cias.');
-        }
-      }
-
-      // -------------------------------------------------------
-      // Card 3: AwesomeAPI &#8211; Cota&#231;&#245;es do D&#243;lar e Euro
-      // -------------------------------------------------------
-      function cardMoedas(dados) {
-        try {
-          const usd = dados.USDBRL;
-          const eur = dados.EURBRL;
-
-          function linha(moeda, obj) {
-            if (!obj) return '';
-            const compra  = parseFloat(obj.bid).toFixed(4);
-            const venda   = parseFloat(obj.ask).toFixed(4);
-            const variacao = parseFloat(obj.pctChange);
-            const seta    = variacao >= 0 ? '&#x25B2;' : '&#x25BC;';
-            const cor     = variacao >= 0 ? '#1a6b32' : '#8b0000';
-            return `
-              <div style="border:1px solid #e0e0e0; border-radius:4px; padding:.75rem; margin-bottom:.6rem;">
-                <p style="font-weight:700; margin:0 0 .4rem; font-size:.95rem;">${moeda}</p>
-                <p style="margin:0; font-size:.88rem;">Compra: <strong>R$ ${compra}</strong> &nbsp;|&nbsp; Venda: <strong>R$ ${venda}</strong></p>
-                <p style="margin:.3rem 0 0; font-size:.82rem; color:${cor}; font-weight:700;">${seta} ${Math.abs(variacao).toFixed(2)}% hoje</p>
-              </div>
-            `;
+          // Descri&#231;&#227;o resumida do c&#243;digo WMO
+          function descricaoTempo(code) {
+            if (code === 0)           return '&#x2600;&#xFE0F; C&#233;u limpo';
+            if (code <= 3)            return '&#x26C5; Parcialmente nublado';
+            if (code <= 9)            return '&#x1F32B;&#xFE0F; Neblina';
+            if (code <= 19)           return '&#x1F326;&#xFE0F; Chuva leve';
+            if (code <= 29)           return '&#x1F327;&#xFE0F; Tempestade';
+            if (code <= 39)           return '&#x1F32B;&#xFE0F; Nevoeiro';
+            if (code <= 49)           return '&#x1F32B;&#xFE0F; Neblina densa';
+            if (code <= 59)           return '&#x1F326;&#xFE0F; Garoa';
+            if (code <= 69)           return '&#x1F327;&#xFE0F; Chuva';
+            if (code <= 79)           return '&#x1F328;&#xFE0F; Neve';
+            if (code <= 84)           return '&#x1F327;&#xFE0F; Pancadas de chuva';
+            if (code <= 94)           return '&#x26C8;&#xFE0F; Tempestade com raios';
+            return '&#x26C8;&#xFE0F; Tempestade forte';
           }
 
-          const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+          const desc    = descricaoTempo(codigo);
+          const periodo = diurno ? '&#x2600; Dia' : '&#x1F319; Noite';
+          const corTemp = temp >= 30 ? '#c0392b' : temp >= 20 ? '#d75f22' : temp >= 10 ? '#2f5d91' : '#1a6b32';
 
           return `
-            <div class="cartao-info h-100" style="border-color:#2b8f54;">
-              <h2 style="color:#2b8f54; font-size:1.1rem;">&#x1F4B5; Cota&#231;&#245;es de Moedas</h2>
-              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>AwesomeAPI (economia)</strong></p>
-              ${linha('D&#243;lar Americano (USD &rarr; BRL)', usd)}
-              ${linha('Euro (EUR &rarr; BRL)', eur)}
-              <p style="font-size:.78rem; color:#666; margin:0;">&#x1F552; Atualizado &#224;s ${horaAtual}</p>
+            <div class="cartao-info h-100" style="border-color:#2f5d91;">
+              <h2 style="color:#2f5d91; font-size:1.1rem; text-align:center;">&#x1F324; Tempo em Porto Alegre</h2>
+              <p style="font-size:.75rem; color:#555; text-align:center; margin-bottom:.75rem;">Fonte: <strong>Open-Meteo API</strong></p>
+              <p style="font-size:3rem; text-align:center; margin:.2rem 0; font-weight:700; color:${corTemp};">${temp}&#176;C</p>
+              <p style="text-align:center; font-size:1rem; margin:.3rem 0 .9rem;">${desc}</p>
+              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
+                <dt style="font-weight:700; color:#444;">Per&#237;odo</dt>  <dd style="margin:0;">${periodo}</dd>
+                <dt style="font-weight:700; color:#444;">Vento</dt>    <dd style="margin:0;">${vento} km/h</dd>
+                <dt style="font-weight:700; color:#444;">Umidade</dt>  <dd style="margin:0;">${umidade}</dd>
+                <dt style="font-weight:700; color:#444;">Hora</dt>     <dd style="margin:0;">${hora}</dd>
+                <dt style="font-weight:700; color:#444;">Coordenadas</dt><dd style="margin:0;">-30.03, -51.22</dd>
+              </dl>
             </div>
           `;
         } catch (e) {
-          return cardErro('AwesomeAPI', 'N&#227;o foi poss&#237;vel processar as cota&#231;&#245;es.');
+          return cardErro('Open-Meteo', 'N&#227;o foi poss&#237;vel processar a previs&#227;o do tempo.');
         }
       }
 
-      // Card gen&#233;rico de erro para cada API individualmente
-      function cardErro(nomApi, mensagem) {
+      // -------------------------------------------------------
+      // Card 3: SWAPI &#8211; Star Wars
+      // -------------------------------------------------------
+      function cardStarWars(d) {
+        try {
+          const nome      = d.name;
+          const altura    = d.height !== 'unknown' ? d.height + ' cm' : 'Desconhecida';
+          const massa     = d.mass   !== 'unknown' ? d.mass   + ' kg' : 'Desconhecida';
+          const cabelo    = d.hair_color;
+          const olhos     = d.eye_color;
+          const nascimento = d.birth_year;
+          const genero    = d.gender;
+          const nFilmes   = Array.isArray(d.films) ? d.films.length : '&#8211;';
+
+          return `
+            <div class="cartao-info h-100" style="border-color:#274a73; background:linear-gradient(160deg,#0a0a1a 0%,#1a2340 100%); color:#e0e8ff;">
+              <h2 style="color:#f0d060; font-size:1.1rem; text-align:center;">&#x1F680; Personagem Star Wars</h2>
+              <p style="font-size:.75rem; color:#8899bb; text-align:center; margin-bottom:.75rem;">Fonte: <strong>SWAPI &#8211; The Star Wars API</strong></p>
+              <p style="font-size:1.4rem; font-weight:700; text-align:center; color:#f0d060; margin:.3rem 0 .9rem;">${nome}</p>
+              <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.9rem; color:#ccd9f0;">
+                <dt style="font-weight:700; color:#8899bb;">Altura</dt>      <dd style="margin:0;">${altura}</dd>
+                <dt style="font-weight:700; color:#8899bb;">Massa</dt>       <dd style="margin:0;">${massa}</dd>
+                <dt style="font-weight:700; color:#8899bb;">Cabelo</dt>      <dd style="margin:0; text-transform:capitalize;">${cabelo}</dd>
+                <dt style="font-weight:700; color:#8899bb;">Olhos</dt>       <dd style="margin:0; text-transform:capitalize;">${olhos}</dd>
+                <dt style="font-weight:700; color:#8899bb;">Nascimento</dt>  <dd style="margin:0;">${nascimento}</dd>
+                <dt style="font-weight:700; color:#8899bb;">G&#234;nero</dt>      <dd style="margin:0; text-transform:capitalize;">${genero}</dd>
+                <dt style="font-weight:700; color:#8899bb;">Filmes</dt>      <dd style="margin:0;">${nFilmes} aparici&#245;es</dd>
+              </dl>
+            </div>
+          `;
+        } catch (e) {
+          return cardErro('SWAPI', 'N&#227;o foi poss&#237;vel processar os dados do personagem.');
+        }
+      }
+
+      // Card gen&#233;rico de erro por API
+      function cardErro(nomeApi, mensagem) {
         return `
           <div class="cartao-info h-100" style="border-color:#dc3545; background:#fff5f5;">
-            <h2 style="color:#8b0000; font-size:1.1rem;">&#10060; Erro: ${nomApi}</h2>
+            <h2 style="color:#8b0000; font-size:1.1rem;">&#10060; Erro: ${nomeApi}</h2>
             <p style="margin:0; font-size:.9rem;">${mensagem}</p>
           </div>
         `;
