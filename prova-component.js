@@ -1,71 +1,82 @@
 // ============================================================
 // Web Component: <minha-prova>
 // Prova online de múltipla escolha encapsulada em Shadow DOM.
-// Para adicionar questões: insira um novo objeto no array
-// "questoes" abaixo. A prova exibirá e corrigirá automaticamente.
+// As questões são carregadas via fetch do arquivo perguntas.json.
 // ============================================================
 
 class MinhaProva extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this._questoes = [];
   }
 
   connectedCallback() {
-    // --------------------------------------------------------
-    // DADOS DA PROVA
-    // Cada objeto tem: enunciado, alternativas[] e correta (índice 0-based).
-    // Para adicionar uma nova questão, basta inserir mais um objeto aqui.
-    // --------------------------------------------------------
-    this._questoes = [
-      {
-        enunciado: 'O que significa a sigla HTML?',
-        alternativas: [
-          'HyperText Markup Language',
-          'HighText Machine Language',
-          'HyperText and links Markup Language'
-        ],
-        correta: 0
-      },
-      {
-        enunciado: 'Qual propriedade CSS é usada para alterar a cor do texto?',
-        alternativas: [
-          'background-color',
-          'text-color',
-          'color'
-        ],
-        correta: 2
-      },
-      {
-        enunciado: 'O que é o Shadow DOM?',
-        alternativas: [
-          'Uma API que permite encapsular HTML, CSS e JS em um componente isolado',
-          'Um banco de dados para guardar elementos HTML',
-          'Um método JavaScript para manipular arrays'
-        ],
-        correta: 0
-      },
-      {
-        enunciado: 'Qual método JavaScript seleciona um elemento pelo seu id?',
-        alternativas: [
-          'document.querySelector()',
-          'document.getElementById()',
-          'document.getElement()'
-        ],
-        correta: 1
-      },
-      {
-        enunciado: 'O que faz a propriedade CSS "display: flex"?',
-        alternativas: [
-          'Torna o elemento invisível',
-          'Ativa o modelo de caixa flexível para o elemento',
-          'Adiciona uma borda ao redor do elemento'
-        ],
-        correta: 1
-      }
-    ];
+    this._mostrarCarregando();
+    this._carregarQuestoes();
+  }
 
-    this._renderizarProva();
+  // Exibe indicador de carregamento enquanto o fetch ocorre
+  _mostrarCarregando() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host { display: block; font-family: Arial, Helvetica, sans-serif; }
+        .carregando {
+          text-align: center;
+          padding: 2rem;
+          color: #2f5d91;
+          font-size: 1rem;
+        }
+        .erro {
+          background: #f8d7da;
+          border: 1px solid #dc3545;
+          border-radius: 4px;
+          padding: 1rem;
+          color: #8b0000;
+          font-weight: 700;
+        }
+      </style>
+      <p class="carregando" role="status" aria-live="polite">⏳ Carregando questões...</p>
+    `;
+  }
+
+  // Carrega as questões do arquivo JSON via fetch com tratamento de erros
+  async _carregarQuestoes() {
+    try {
+      const resposta = await fetch('perguntas.json');
+
+      if (!resposta.ok) {
+        throw new Error(`Erro ao carregar questões: HTTP ${resposta.status}`);
+      }
+
+      const dados = await resposta.json();
+
+      if (!Array.isArray(dados) || dados.length === 0) {
+        throw new Error('O arquivo de questões está vazio ou com formato inválido.');
+      }
+
+      this._questoes = dados;
+      this._renderizarProva();
+
+    } catch (erro) {
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host { display: block; font-family: Arial, Helvetica, sans-serif; }
+          .erro {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            border-radius: 4px;
+            padding: 1.2rem;
+            color: #8b0000;
+            font-weight: 700;
+          }
+        </style>
+        <div class="erro" role="alert">
+          ❌ Não foi possível carregar as questões.<br>
+          <small>${erro.message}</small>
+        </div>
+      `;
+    }
   }
 
   // Monta toda a estrutura HTML + CSS da prova dentro do Shadow DOM
@@ -122,7 +133,6 @@ class MinhaProva extends HTMLElement {
           margin: 0 0 1.5rem;
         }
 
-        /* Cada questão */
         .questao {
           border: 1px dashed #8b8b8b;
           border-radius: 4px;
@@ -143,7 +153,6 @@ class MinhaProva extends HTMLElement {
           gap: 0.5rem;
         }
 
-        /* Cada alternativa é um label clicável */
         .alternativa {
           display: flex;
           align-items: center;
@@ -160,7 +169,6 @@ class MinhaProva extends HTMLElement {
           border-color: #2f5d91;
         }
 
-        /* Quando o radio está marcado */
         .alternativa:has(input:checked) {
           background: #ddeaff;
           border-color: #2f5d91;
@@ -175,7 +183,6 @@ class MinhaProva extends HTMLElement {
 
         .texto-alternativa { font-size: 0.95rem; line-height: 1.4; }
 
-        /* Feedback por questão após correção */
         .feedback {
           margin: 0.6rem 0 0;
           font-size: 0.9rem;
@@ -183,7 +190,6 @@ class MinhaProva extends HTMLElement {
           min-height: 1.2rem;
         }
 
-        /* Estados de feedback */
         .alternativa.correta-selecionada {
           background: #d4edda;
           border-color: #28a745;
@@ -199,7 +205,6 @@ class MinhaProva extends HTMLElement {
         .feedback.acerto { color: #1a6b32; }
         .feedback.erro   { color: #8b0000; }
 
-        /* Área de botões */
         .botoes {
           display: flex;
           flex-wrap: wrap;
@@ -229,10 +234,8 @@ class MinhaProva extends HTMLElement {
           color: #fff;
           border: 1px solid #a84516;
         }
-        .btn-reiniciar:hover  { background: #b84f1a; }
-        .btn-reiniciar:hidden { display: none; }
+        .btn-reiniciar:hover { background: #b84f1a; }
 
-        /* Resultado global */
         .resultado {
           background: #eef4ff;
           border: 2px solid #2f5d91;
@@ -245,7 +248,6 @@ class MinhaProva extends HTMLElement {
         .resultado.visivel { display: block; }
         .resultado strong  { color: #2f5d91; font-size: 1.2rem; }
 
-        /* Mensagem de alerta (nem todas respondidas) */
         .aviso {
           color: #8b0000;
           font-size: 0.9rem;
@@ -254,7 +256,6 @@ class MinhaProva extends HTMLElement {
           margin-top: 0.5rem;
         }
 
-        /* Responsivo */
         @media (max-width: 600px) {
           .prova-container { padding: 1rem; }
           .prova-titulo    { font-size: 1.1rem; }
@@ -263,7 +264,7 @@ class MinhaProva extends HTMLElement {
       </style>
 
       <div class="prova-container" role="form" aria-label="Prova online">
-        <h2 class="prova-titulo">📝 Prova Online — Interface Web</h2>
+        <h2 class="prova-titulo">&#x1F4DD; Prova Online &#x2014; Interface Web</h2>
         <p class="prova-descricao">Responda todas as questões e clique em <strong>Corrigir</strong>.</p>
 
         <div class="questoes">${questoesHTML}</div>
@@ -277,12 +278,10 @@ class MinhaProva extends HTMLElement {
       </div>
     `;
 
-    // Eventos
     this.shadowRoot.getElementById('btn-corrigir').addEventListener('click', () => this._corrigir());
     this.shadowRoot.getElementById('btn-reiniciar').addEventListener('click', () => this._reiniciar());
   }
 
-  // Corrige as respostas e mostra o resultado
   _corrigir() {
     const total = this._questoes.length;
     let acertos = 0;
@@ -290,12 +289,10 @@ class MinhaProva extends HTMLElement {
     const aviso = this.shadowRoot.getElementById('aviso');
     aviso.textContent = '';
 
-    // Verifica se todas foram respondidas
     for (let qi = 0; qi < total; qi++) {
       const selecionado = this.shadowRoot.querySelector(`input[name="questao-${qi}"]:checked`);
       if (!selecionado) {
         todasRespondidas = false;
-        // Destaca a questão não respondida
         this.shadowRoot.getElementById(`questao-${qi}`).style.borderColor = '#dc3545';
       } else {
         this.shadowRoot.getElementById(`questao-${qi}`).style.borderColor = '';
@@ -307,31 +304,27 @@ class MinhaProva extends HTMLElement {
       return;
     }
 
-    // Aplica feedback questão a questão
     for (let qi = 0; qi < total; qi++) {
       const q = this._questoes[qi];
       const selecionado = this.shadowRoot.querySelector(`input[name="questao-${qi}"]:checked`);
       const respostaIndex = parseInt(selecionado.value, 10);
       const feedback = this.shadowRoot.getElementById(`feedback-${qi}`);
 
-      // Bloqueia os inputs
       const inputs = this.shadowRoot.querySelectorAll(`input[name="questao-${qi}"]`);
       inputs.forEach(i => { i.disabled = true; });
 
-      // Pinta as alternativas
       q.alternativas.forEach((_, ai) => {
         const label = this.shadowRoot.getElementById(`label-${qi}-${ai}`);
         label.classList.remove('correta-selecionada', 'errada-selecionada', 'correta-indicar');
         if (ai === q.correta && ai === respostaIndex) {
-          label.classList.add('correta-selecionada'); // acertou
+          label.classList.add('correta-selecionada');
         } else if (ai === respostaIndex && ai !== q.correta) {
-          label.classList.add('errada-selecionada');  // errou
+          label.classList.add('errada-selecionada');
         } else if (ai === q.correta) {
-          label.classList.add('correta-indicar');     // indica a correta
+          label.classList.add('correta-indicar');
         }
       });
 
-      // Texto de feedback
       if (respostaIndex === q.correta) {
         acertos++;
         feedback.textContent = '✅ Correto!';
@@ -343,26 +336,23 @@ class MinhaProva extends HTMLElement {
       }
     }
 
-    // Resultado global
     const nota = ((acertos / total) * 10).toFixed(1);
     const resultado = this.shadowRoot.getElementById('resultado');
     resultado.innerHTML = `
-      <strong>Resultado: ${acertos}/${total} — Nota: ${nota}</strong><br>
+      <strong>Resultado: ${acertos}/${total} &mdash; Nota: ${nota}</strong><br>
       ${acertos === total
-        ? '🏆 Parabéns, você acertou tudo!'
+        ? '&#x1F3C6; Parabéns, você acertou tudo!'
         : acertos === 0
-          ? '😕 Nenhum acerto. Tente novamente!'
+          ? '&#x1F615; Nenhum acerto. Tente novamente!'
           : `Você acertou ${acertos} de ${total} questões. Continue estudando!`
       }
     `;
     resultado.classList.add('visivel');
 
-    // Mostra botão de reiniciar e esconde corrigir
     this.shadowRoot.getElementById('btn-corrigir').hidden = true;
     this.shadowRoot.getElementById('btn-reiniciar').hidden = false;
   }
 
-  // Reseta a prova completamente
   _reiniciar() {
     this._renderizarProva();
   }

@@ -1,0 +1,47 @@
+[
+  {
+    "enunciado": "O que significa a sigla HTML?",
+    "alternativas": [
+      "HyperText Markup Language",
+      "HighText Machine Language",
+      "HyperText and links Markup Language"
+    ],
+    "correta": 0
+  },
+  {
+    "enunciado": "Qual propriedade CSS é usada para alterar a cor do texto?",
+    "alternativas": [
+      "background-color",
+      "text-color",
+      "color"
+    ],
+    "correta": 2
+  },
+  {
+    "enunciado": "O que é o Shadow DOM?",
+    "alternativas": [
+      "Uma API que permite encapsular HTML, CSS e JS em um componente isolado",
+      "Um banco de dados para guardar elementos HTML",
+      "Um método JavaScript para manipular arrays"
+    ],
+    "correta": 0
+  },
+  {
+    "enunciado": "Qual método JavaScript seleciona um elemento pelo seu id?",
+    "alternativas": [
+      "document.querySelector()",
+      "document.getElementById()",
+      "document.getElement()"
+    ],
+    "correta": 1
+  },
+  {
+    "enunciado": "O que faz a propriedade CSS \"display: flex\"?",
+    "alternativas": [
+      "Torna o elemento invisível",
+      "Ativa o modelo de caixa flexível para o elemento",
+      "Adiciona uma borda ao redor do elemento"
+    ],
+    "correta": 1
+  }
+]

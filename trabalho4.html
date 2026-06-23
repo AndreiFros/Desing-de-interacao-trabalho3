@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Painel de dados com 3 APIs simultâneas usando Promise.all - Trabalho 4 da disciplina de Interface Web.">
+  <title>Interface Web | Trabalho 4</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+  <script src="components.js" defer></script>
+</head>
+<body>
+  <div class="estrutura-site">
+
+    <site-header subtitulo="Painel de APIs com Promise.all - Trabalho 4"></site-header>
+    <site-nav ativo="trabalho4"></site-nav>
+
+    <main class="conteudo-site">
+      <div class="container py-4 py-md-5">
+
+        <section class="cartao-info mb-4">
+          <h2>Painel de dados simultâneos</h2>
+          <p>
+            Esta página utiliza o comando <strong>Promise.all</strong> para consultar
+            <strong>3 APIs diferentes ao mesmo tempo</strong> e exibir os resultados lado a lado.
+            Todas as chamadas são protegidas contra erros para garantir que, mesmo que uma API
+            falhe, as demais continuem sendo exibidas.
+          </p>
+          <p>
+            As APIs consultadas são:
+          </p>
+          <ul>
+            <li>&#x1F30D; <strong>REST Countries</strong> &#8211; Informações sobre o Brasil</li>
+            <li>&#x1F680; <strong>Spaceflight News</strong> &#8211; Última notícia sobre o espaço</li>
+            <li>&#x1F4B5; <strong>AwesomeAPI (Moedas)</strong> &#8211; Cotação do Dólar (USD) e Euro (EUR)</li>
+          </ul>
+          <p>
+            Clique em <strong>Carregar dados</strong> para buscar todas as informações de uma só vez.
+          </p>
+        </section>
+
+        <div class="text-center mb-4">
+          <button id="btnCarregar" type="button" class="btn btn-custom px-4">
+            &#x1F504; Carregar dados
+          </button>
+        </div>
+
+        <section id="painel-apis" aria-live="polite" aria-atomic="true">
+          <!-- Resultados serão inseridos aqui via JavaScript -->
+        </section>
+
+      </div>
+    </main>
+
+    <site-footer>Interface Web - 3&#186; semestre | Trabalho 4: Painel de APIs com Promise.all</site-footer>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const btnCarregar = document.getElementById('btnCarregar');
+      const painel      = document.getElementById('painel-apis');
+
+      btnCarregar.addEventListener('click', carregarApis);
+
+      // Carrega automaticamente ao abrir a página
+      window.addEventListener('DOMContentLoaded', carregarApis);
+
+      async function carregarApis() {
+        btnCarregar.disabled = true;
+        mostrarCarregando();
+
+        // URLs das 3 APIs
+        const urlPais     = 'https://restcountries.com/v3.1/alpha/BR';
+        const urlEspaco   = 'https://api.spaceflightnewsapi.net/v4/articles/?limit=1';
+        const urlMoedas   = 'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL';
+
+        try {
+          // Promise.all dispara as 3 chamadas simultaneamente
+          const [resPais, resEspaco, resMoedas] = await Promise.all([
+            fetch(urlPais),
+            fetch(urlEspaco),
+            fetch(urlMoedas)
+          ]);
+
+          // Verifica o status HTTP de cada resposta
+          if (!resPais.ok)   throw new Error(`REST Countries: HTTP ${resPais.status}`);
+          if (!resEspaco.ok) throw new Error(`Spaceflight News: HTTP ${resEspaco.status}`);
+          if (!resMoedas.ok) throw new Error(`AwesomeAPI: HTTP ${resMoedas.status}`);
+
+          const [dadosPais, dadosEspaco, dadosMoedas] = await Promise.all([
+            resPais.json(),
+            resEspaco.json(),
+            resMoedas.json()
+          ]);
+
+          renderizarPainel(dadosPais, dadosEspaco, dadosMoedas);
+
+        } catch (erro) {
+          painel.innerHTML = `
+            <div class="cartao-info" style="border-color:#dc3545; background:#fff5f5;" role="alert">
+              <p style="color:#8b0000; font-weight:700; margin:0;">
+                &#10060; Erro ao carregar os dados: ${erro.message || 'Verifique sua conexão e tente novamente.'}
+              </p>
+            </div>
+          `;
+        } finally {
+          btnCarregar.disabled = false;
+        }
+      }
+
+      function mostrarCarregando() {
+        painel.innerHTML = `
+          <div class="cartao-info text-center">
+            <p style="color:#2f5d91; font-weight:700; margin:0;">&#9203; Consultando as APIs, aguarde...</p>
+          </div>
+        `;
+      }
+
+      function renderizarPainel(dadosPais, dadosEspaco, dadosMoedas) {
+        const pais    = cardPais(dadosPais);
+        const espaco  = cardEspaco(dadosEspaco);
+        const moedas  = cardMoedas(dadosMoedas);
+
+        painel.innerHTML = `
+          <div class="row g-4">
+            <div class="col-12 col-md-4">${pais}</div>
+            <div class="col-12 col-md-4">${espaco}</div>
+            <div class="col-12 col-md-4">${moedas}</div>
+          </div>
+          <p class="mt-3" style="font-size:.8rem; color:#555; text-align:center;">
+            Dados carregados via <strong>Promise.all</strong> em uma única chamada assíncrona.
+          </p>
+        `;
+      }
+
+      // -------------------------------------------------------
+      // Card 1: REST Countries &#8211; Informações sobre o Brasil
+      // -------------------------------------------------------
+      function cardPais(dados) {
+        try {
+          const p          = dados[0];
+          const nome       = p.name.common || '&#8211;';
+          const capital    = (p.capital && p.capital[0]) || '&#8211;';
+          const populacao  = p.population ? p.population.toLocaleString('pt-BR') : '&#8211;';
+          const area       = p.area       ? p.area.toLocaleString('pt-BR') + ' km&#178;' : '&#8211;';
+          const idiomas    = p.languages  ? Object.values(p.languages).join(', ') : '&#8211;';
+          const moeda      = p.currencies ? Object.values(p.currencies).map(m => `${m.name} (${m.symbol})`).join(', ') : '&#8211;';
+          const bandeira   = (p.flags && p.flags.svg) ? `<img src="${p.flags.svg}" alt="Bandeira do Brasil" style="width:100%; max-width:180px; border-radius:4px; border:1px solid #ccc; margin-bottom:.75rem;" loading="lazy">` : '';
+
+          return `
+            <div class="cartao-info h-100" style="border-color:#2f5d91;">
+              <h2 style="color:#2f5d91; font-size:1.1rem;">&#x1F30D; Informações sobre o Brasil</h2>
+              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>REST Countries API</strong></p>
+              ${bandeira}
+              <dl style="margin:0; display:grid; grid-template-columns: auto 1fr; gap:.3rem .75rem; font-size:.9rem;">
+                <dt style="font-weight:700; color:#444;">Pa&#237;s</dt>       <dd style="margin:0;">${nome}</dd>
+                <dt style="font-weight:700; color:#444;">Capital</dt>    <dd style="margin:0;">${capital}</dd>
+                <dt style="font-weight:700; color:#444;">Popula&#231;&#227;o</dt> <dd style="margin:0;">${populacao} hab.</dd>
+                <dt style="font-weight:700; color:#444;">&#193;rea</dt>       <dd style="margin:0;">${area}</dd>
+                <dt style="font-weight:700; color:#444;">Idioma</dt>     <dd style="margin:0;">${idiomas}</dd>
+                <dt style="font-weight:700; color:#444;">Moeda</dt>      <dd style="margin:0;">${moeda}</dd>
+              </dl>
+            </div>
+          `;
+        } catch (e) {
+          return cardErro('REST Countries', 'N&#227;o foi poss&#237;vel processar os dados do pa&#237;s.');
+        }
+      }
+
+      // -------------------------------------------------------
+      // Card 2: Spaceflight News &#8211; &#218;ltima not&#237;cia do espa&#231;o
+      // -------------------------------------------------------
+      function cardEspaco(dados) {
+        try {
+          const artigo    = dados.results[0];
+          const titulo    = artigo.title           || 'Sem t&#237;tulo';
+          const resumo    = artigo.summary         || 'Sem resumo dispon&#237;vel.';
+          const publicado = artigo.published_at    ? new Date(artigo.published_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }) : '&#8211;';
+          const link      = artigo.url             || '#';
+          const imagem    = artigo.image_url       ? `<img src="${artigo.image_url}" alt="${titulo}" style="width:100%; max-height:140px; object-fit:cover; border-radius:4px; margin-bottom:.75rem;" loading="lazy">` : '';
+
+          // Limita o resumo para não deixar o card muito alto
+          const resumoCurto = resumo.length > 220 ? resumo.slice(0, 217) + '...' : resumo;
+
+          return `
+            <div class="cartao-info h-100" style="border-color:#d75f22;">
+              <h2 style="color:#d75f22; font-size:1.1rem;">&#x1F680; &#218;ltima Not&#237;cia Espacial</h2>
+              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>Spaceflight News API</strong></p>
+              ${imagem}
+              <p style="font-weight:700; font-size:.95rem; margin-bottom:.4rem;">${titulo}</p>
+              <p style="font-size:.88rem; color:#444; margin-bottom:.75rem;">${resumoCurto}</p>
+              <p style="font-size:.8rem; color:#666; margin-bottom:.75rem;">&#x1F4C5; Publicado em: ${publicado}</p>
+              <a href="${link}" target="_blank" rel="noopener noreferrer" style="font-size:.85rem; color:#d75f22; font-weight:700;">
+                Ler not&#237;cia completa &#8594;
+              </a>
+            </div>
+          `;
+        } catch (e) {
+          return cardErro('Spaceflight News', 'N&#227;o foi poss&#237;vel processar as not&#237;cias.');
+        }
+      }
+
+      // -------------------------------------------------------
+      // Card 3: AwesomeAPI &#8211; Cota&#231;&#245;es do D&#243;lar e Euro
+      // -------------------------------------------------------
+      function cardMoedas(dados) {
+        try {
+          const usd = dados.USDBRL;
+          const eur = dados.EURBRL;
+
+          function linha(moeda, obj) {
+            if (!obj) return '';
+            const compra  = parseFloat(obj.bid).toFixed(4);
+            const venda   = parseFloat(obj.ask).toFixed(4);
+            const variacao = parseFloat(obj.pctChange);
+            const seta    = variacao >= 0 ? '&#x25B2;' : '&#x25BC;';
+            const cor     = variacao >= 0 ? '#1a6b32' : '#8b0000';
+            return `
+              <div style="border:1px solid #e0e0e0; border-radius:4px; padding:.75rem; margin-bottom:.6rem;">
+                <p style="font-weight:700; margin:0 0 .4rem; font-size:.95rem;">${moeda}</p>
+                <p style="margin:0; font-size:.88rem;">Compra: <strong>R$ ${compra}</strong> &nbsp;|&nbsp; Venda: <strong>R$ ${venda}</strong></p>
+                <p style="margin:.3rem 0 0; font-size:.82rem; color:${cor}; font-weight:700;">${seta} ${Math.abs(variacao).toFixed(2)}% hoje</p>
+              </div>
+            `;
+          }
+
+          const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+
+          return `
+            <div class="cartao-info h-100" style="border-color:#2b8f54;">
+              <h2 style="color:#2b8f54; font-size:1.1rem;">&#x1F4B5; Cota&#231;&#245;es de Moedas</h2>
+              <p style="font-size:.75rem; color:#555; margin-bottom:.75rem;">Fonte: <strong>AwesomeAPI (economia)</strong></p>
+              ${linha('D&#243;lar Americano (USD &rarr; BRL)', usd)}
+              ${linha('Euro (EUR &rarr; BRL)', eur)}
+              <p style="font-size:.78rem; color:#666; margin:0;">&#x1F552; Atualizado &#224;s ${horaAtual}</p>
+            </div>
+          `;
+        } catch (e) {
+          return cardErro('AwesomeAPI', 'N&#227;o foi poss&#237;vel processar as cota&#231;&#245;es.');
+        }
+      }
+
+      // Card gen&#233;rico de erro para cada API individualmente
+      function cardErro(nomApi, mensagem) {
+        return `
+          <div class="cartao-info h-100" style="border-color:#dc3545; background:#fff5f5;">
+            <h2 style="color:#8b0000; font-size:1.1rem;">&#10060; Erro: ${nomApi}</h2>
+            <p style="margin:0; font-size:.9rem;">${mensagem}</p>
+          </div>
+        `;
+      }
+
+    }());
+  </script>
+</body>
+</html>

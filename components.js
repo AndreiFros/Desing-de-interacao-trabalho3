@@ -51,7 +51,8 @@ customElements.define('site-header', SiteHeader);
 // Web Component: <site-nav>
 // Reutiliza a navegação em todas as páginas.
 // Suporta o atributo "ativo" para destacar a página atual.
-// Valores válidos: "inicio", "trabalho1", "trabalho2", "trabalho3"
+// Valores válidos: "inicio", "trabalho1", "trabalho2",
+//                  "trabalho3", "trabalho4"
 // ============================================================
 class SiteNav extends HTMLElement {
   constructor() {
@@ -64,9 +65,10 @@ class SiteNav extends HTMLElement {
 
     const links = [
       { id: 'inicio',    href: 'index.html',     label: 'Apresentação' },
-      { id: 'trabalho1', href: 'trabalho1.html',  label: 'Trabalho 1'   },
-      { id: 'trabalho2', href: 'trabalho2.html',  label: 'Trabalho 2'   },
-      { id: 'trabalho3', href: 'trabalho3.html',  label: 'Trabalho 3'   },
+      { id: 'trabalho1', href: 'trabalho1.html',  label: 'Trabalho 1'  },
+      { id: 'trabalho2', href: 'trabalho2.html',  label: 'Trabalho 2'  },
+      { id: 'trabalho3', href: 'trabalho3.html',  label: 'Trabalho 3'  },
+      { id: 'trabalho4', href: 'trabalho4.html',  label: 'Trabalho 4'  },
     ];
 
     const itens = links.map(l => {
@@ -151,7 +153,7 @@ class SiteFooter extends HTMLElement {
       </style>
       <footer>
         <div class="container">
-          <p><slot>Interface Web - 3º semestre</slot></p>
+          <p><slot>Interface Web - 3&#186; semestre</slot></p>
         </div>
       </footer>
     `;

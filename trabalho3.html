@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Trabalho 3 da disciplina de Interface Web - em breve.">
+  <meta name="description" content="Consulta de CEP com a API ViaCEP - Trabalho 3 da disciplina de Interface Web.">
   <title>Interface Web | Trabalho 3</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="styles.css">
@@ -12,20 +12,187 @@
 <body>
   <div class="estrutura-site">
 
-    <site-header subtitulo="Trabalho 3 - Em desenvolvimento"></site-header>
+    <site-header subtitulo="Consulta de CEP via API - Trabalho 3"></site-header>
     <site-nav ativo="trabalho3"></site-nav>
 
     <main class="conteudo-site">
       <div class="container py-4 py-md-5">
-        <section class="cartao-info">
-          <h2>Trabalho 3</h2>
-          <p>Esta página está reservada para o Trabalho 3, que será desenvolvido em breve.</p>
+
+        <section class="cartao-info mb-4">
+          <h2>Consulta de CEP</h2>
+          <p>
+            Preencha o formulário abaixo com um CEP brasileiro (somente números, 8 dígitos).
+            Ao clicar em <strong>Buscar</strong>, os dados do endereço serão consultados na
+            <strong>API ViaCEP</strong> e exibidos logo abaixo.
+          </p>
+          <p>
+            <strong>Exemplo de CEP válido:</strong> 01310-100 (Av. Paulista, São Paulo &#8211; SP).
+          </p>
         </section>
+
+        <section class="cartao-info mb-4">
+          <h2>Formulário de consulta</h2>
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-6 col-lg-4">
+              <label for="campoCep" class="form-label">CEP <span aria-hidden="true">*</span></label>
+              <input
+                type="text"
+                id="campoCep"
+                class="form-control"
+                placeholder="Ex.: 01310100"
+                maxlength="9"
+                inputmode="numeric"
+                autocomplete="postal-code"
+                aria-describedby="dicaCep"
+                aria-required="true"
+              >
+              <small id="dicaCep" class="hint-text">Digite somente os números, sem hífen.</small>
+            </div>
+            <div class="col-12 col-md-3 col-lg-2">
+              <button
+                id="btnBuscar"
+                type="button"
+                class="btn btn-custom w-100"
+                aria-controls="resultado-cep"
+              >Buscar</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="resultado-cep" aria-live="polite" aria-atomic="true">
+          <!-- Resultado da API será inserido aqui via JavaScript -->
+        </section>
+
       </div>
     </main>
 
-    <site-footer>Interface Web - 3; semestre | Trabalho 3: Em desenvolvimento</site-footer>
+    <site-footer>Interface Web - 3&#186; semestre | Trabalho 3: Consulta de CEP com API ViaCEP</site-footer>
 
   </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const campoCep  = document.getElementById('campoCep');
+      const btnBuscar = document.getElementById('btnBuscar');
+      const resultado = document.getElementById('resultado-cep');
+
+      // Permite apenas dígitos no campo e formata automaticamente com hífen
+      campoCep.addEventListener('input', function () {
+        let valor = this.value.replace(/\D/g, '').slice(0, 8);
+        if (valor.length > 5) {
+          valor = valor.slice(0, 5) + '-' + valor.slice(5);
+        }
+        this.value = valor;
+      });
+
+      // Dispara busca ao pressionar Enter
+      campoCep.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Enter') {
+          btnBuscar.click();
+        }
+      });
+
+      btnBuscar.addEventListener('click', buscarCep);
+
+      async function buscarCep() {
+        const cepLimpo = campoCep.value.replace(/\D/g, '');
+
+        // Validação do campo antes de chamar a API
+        if (cepLimpo.length === 0) {
+          mostrarErro('Por favor, informe um CEP antes de buscar.');
+          campoCep.focus();
+          return;
+        }
+
+        if (cepLimpo.length !== 8) {
+          mostrarErro('O CEP deve conter exatamente 8 dígitos. Verifique e tente novamente.');
+          campoCep.focus();
+          return;
+        }
+
+        mostrarCarregando();
+        btnBuscar.disabled = true;
+
+        try {
+          const resposta = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+
+          if (!resposta.ok) {
+            throw new Error(`Erro na comunicação com a API (HTTP ${resposta.status}).`);
+          }
+
+          const dados = await resposta.json();
+
+          if (dados.erro) {
+            mostrarErro('CEP não encontrado. Verifique o número digitado e tente novamente.');
+            return;
+          }
+
+          mostrarResultado(dados);
+
+        } catch (erro) {
+          if (erro.name === 'TypeError') {
+            mostrarErro('Não foi possível conectar à API. Verifique sua conexão com a internet e tente novamente.');
+          } else {
+            mostrarErro(erro.message || 'Ocorreu um erro inesperado. Tente novamente em instantes.');
+          }
+        } finally {
+          btnBuscar.disabled = false;
+        }
+      }
+
+      function mostrarCarregando() {
+        resultado.innerHTML = `
+          <div class="cartao-info">
+            <p class="text-center" style="color:#2f5d91; font-weight:700;">&#9203; Buscando dados do CEP...</p>
+          </div>
+        `;
+      }
+
+      function mostrarErro(mensagem) {
+        resultado.innerHTML = `
+          <div class="cartao-info" style="border-color:#dc3545; background:#fff5f5;" role="alert">
+            <p style="color:#8b0000; font-weight:700; margin:0;">&#10060; ${mensagem}</p>
+          </div>
+        `;
+      }
+
+      function mostrarResultado(dados) {
+        const campos = [
+          { rotulo: 'CEP',          valor: dados.cep         },
+          { rotulo: 'Logradouro',   valor: dados.logradouro  },
+          { rotulo: 'Complemento',  valor: dados.complemento },
+          { rotulo: 'Bairro',       valor: dados.bairro      },
+          { rotulo: 'Cidade',       valor: dados.localidade  },
+          { rotulo: 'Estado',       valor: dados.uf          },
+          { rotulo: 'IBGE',         valor: dados.ibge        },
+          { rotulo: 'DDD',          valor: dados.ddd         },
+        ];
+
+        const linhas = campos
+          .filter(c => c.valor)
+          .map(c => `
+            <div class="col-12 col-sm-6 col-md-4">
+              <p class="mb-1" style="font-size:.8rem; color:#555; font-weight:700; text-transform:uppercase; letter-spacing:.04em;">${c.rotulo}</p>
+              <p class="mb-0" style="font-size:1rem; color:#222;">${c.valor}</p>
+            </div>
+          `).join('');
+
+        resultado.innerHTML = `
+          <div class="cartao-info" style="border-color:#2b8f54;">
+            <h2 style="color:#2b8f54; margin-bottom:1rem;">&#10003; Endereço encontrado</h2>
+            <div class="row g-3">${linhas}</div>
+            <hr style="margin:1rem 0; border-color:#c7c7c7;">
+            <p style="font-size:.8rem; color:#555; margin:0;">
+              Dados fornecidos pela <strong>API ViaCEP</strong>
+              (<a href="https://viacep.com.br" target="_blank" rel="noopener noreferrer">viacep.com.br</a>).
+            </p>
+          </div>
+        `;
+      }
+
+    }());
+  </script>
 </body>
 </html>
